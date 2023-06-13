@@ -7,16 +7,19 @@ void showUsage(std::string name) {
 	std::cerr << "Usage: " << name << " <option(s)> input_fasta_file output\n"
 		<< "Options:\n"
 		<< "\t-h,\t\tShow this help message\n"
-		<< "\t-c,\t\tList of parameters\n"
+		<< "\t-m,\t\tSelect one of LSH Methods (1. 1-Stable distributions (default); 2. MinHash)\n"
+		<< "\t-t,\t\tthreshold of similarity (default: 0.5)\n"
 		<< std::endl;
 }
 
 int main(int argc, char* argv[]) {
-	std::vector <int> windowSize, kmerLength, nRepetition;
-	std::vector <double> projectionWidth, similarityThreshold;
+	std::vector <int> windowSize = {2, 10, 5, 20, 30};
+	std::vector <int> kmerLength = {2, 2, 3, 3, 3};
+	int mode = 1;
+	double similarityThreshold = 0.5;
 	std::string inputFasta = "", output = "";
 
-	if(argc < 5) {
+	if(argc < 3) {
 		showUsage(argv[0]);
 		return 1;
 	}
@@ -25,23 +28,16 @@ int main(int argc, char* argv[]) {
 		if(strcmp(argv[i], "-h") == 0) {
 			showUsage(argv[0]);
 			return 0;
-		} else if (strcmp(argv[i], "-c") == 0) {
+		} else if (strcmp(argv[i], "-m") == 0) {
 			if (i + 1 < argc) {
-				std::ifstream ifs(argv[++i]);
-				if(ifs.is_open()) {
-					while(!ifs.eof()) {
-						int w, k, r;
-						double p, s;
-						ifs >> w >> k >> r >> p >> s;
-						windowSize.emplace_back(w);
-						kmerLength.emplace_back(k);
-						nRepetition.emplace_back(r);
-						projectionWidth.emplace_back(p); 
-						similarityThreshold.emplace_back(s);
-					}
-				} else {
-					std::cerr << "!!! Error: failed to open " << argv[i] << std::endl;
-				}
+				mode = std::stoi(argv[++i]);
+			} else {
+				std::cerr << "-c option requires one argument." << std::endl;
+				return 1;
+			}  
+		} else if (strcmp(argv[i], "-t") == 0) {
+			if (i + 1 < argc) {
+				similarityThreshold = std::stof(argv[++i]);
 			} else {
 				std::cerr << "-c option requires one argument." << std::endl;
 				return 1;
@@ -59,10 +55,10 @@ int main(int argc, char* argv[]) {
     SequenceList seqList;
     seqList.loadFromFasta(inputFasta);
         
-	GappedKmerScan scanner(windowSize, kmerLength, nRepetition, projectionWidth);
+	GappedKmerScan scanner(windowSize, kmerLength);
 	scanner.scan(seqList);
 
-	LSH lsh(seqList, scanner, similarityThreshold);
+	LSH lsh(seqList, scanner, mode, similarityThreshold);
 	lsh.work();
 	lsh.dumpToFile(output + "/output.pairs");
 

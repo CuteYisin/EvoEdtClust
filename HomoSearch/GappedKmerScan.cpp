@@ -1,11 +1,9 @@
 #include "GappedKmerScan.h"
 
 
-GappedKmerScan::GappedKmerScan(std::vector <int>& windowSize, std::vector <int>& kmerLength, std::vector <int>& nRepetition, std::vector <double>& projectionWidth):
+GappedKmerScan::GappedKmerScan(std::vector <int>& windowSize, std::vector <int>& kmerLength):
     windowSize(windowSize),
     kmerLength(kmerLength),
-    nRepetition(nRepetition),
-    projectionWidth(projectionWidth),
     levelNumber(windowSize.size()) {
         std::cout << "\n=== Scan sequences into gapped kmer profile ===" << std::endl;
 
@@ -16,7 +14,7 @@ GappedKmerScan::GappedKmerScan(std::vector <int>& windowSize, std::vector <int>&
             generateIndices(i);
         }
         profile = std::vector <std::vector <PROFILE_TYPE> > ();
-    };
+    }
 
 
 GappedKmerScan::~GappedKmerScan() { }

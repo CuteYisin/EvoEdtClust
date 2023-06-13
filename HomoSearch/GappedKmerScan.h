@@ -20,14 +20,13 @@ class GappedKmerScan {
         void addSequenceProfile(const std::string&);
 
     public:
-        const std::vector <int> windowSize, kmerLength, nRepetition;
-        const std::vector <double> projectionWidth;
+        const std::vector <int> windowSize, kmerLength;
         const int levelNumber;
 
         //std::vector <PROFILE_TYPE> profile;
         std::vector< std::vector <PROFILE_TYPE> > profile;
 
-        GappedKmerScan(std::vector <int>&, std::vector <int>&, std::vector <int>&, std::vector <double>&);
+        GappedKmerScan(std::vector <int>&, std::vector <int>&);
         ~GappedKmerScan();
         void scan(const SequenceList&);
 };

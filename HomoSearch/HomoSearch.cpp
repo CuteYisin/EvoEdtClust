@@ -1,4 +1,5 @@
 #include "HomoSearch.h"
+#include "vector_unordered_map.h"
 
 
 HomoPairs::HomoPairs(PAIR_TYPE& base): base(base) {
@@ -20,10 +21,16 @@ HomoSearch::HomoSearch(const SequenceList& seqList): seqList(seqList) {}
 HomoSearch::~HomoSearch() {}
 
 
-LSH::LSH(const SequenceList& seqList, const GappedKmerScan& scanner, const std::vector <double>& similarityThreshold): 
+LSH::LSH(const SequenceList& seqList, const GappedKmerScan& scanner, const int& mode, const double& similarityThreshold): 
     HomoSearch(seqList),
     scanner(scanner),
+    mode(mode),
+    pstable_hashTable_k(3),
+    pstable_hashTable_L(30),
+    minHash_hashTable_k(2),
+    minHash_hashRable_L(50),
     similarityThreshold(similarityThreshold),
+    projectionWidth(0.1),
     table_size(100000),
     location(0.0),
     scale(1.0),
@@ -64,21 +71,21 @@ void LSH::generateCombinations() {
     }
 }
 
-double LSH::getCoefficients(const int& windoeSize, const int& kmerLength) {
-    int editNum;
-    if(kmerLength == 1) {
-        editNum = 1;
-    } else {
-        editNum = (windoeSize - 1) * combinations[windoeSize - 2][kmerLength - 2];
-        for(int i = 0; i <= windoeSize - kmerLength; i++) {
-            editNum += combinations[windoeSize - 2 - i][kmerLength - 2];
-        }
+
+int LSH::hashFunction(const HASH_TYPE& str){
+    int hash = 5381;
+    int c, index = 0;
+
+    while ((c = str[index++])) {
+        hash = ((hash << 5) + hash) + c;
     }
-    //std::cout << editNum << std::endl;
-    return 1.0 / editNum;
+
+    return hash;
 }
 
-int LSH::getFingerprint(const int& level, const std::vector <PROFILE_TYPE>& seqProf, std::unordered_map <HASH_TYPE, double>& curIndice) {
+
+int LSH::getFingerprint_pStable(const int& level, const std::vector <PROFILE_TYPE>& seqProf, 
+    std::unordered_map <HASH_TYPE, double>& curIndice, const int& seqId, const double& projectionOffset) {
     int bucketId = 0;
     double dot_product = 0.0;
     std::uniform_real_distribution<double> distribution(0.0, 1.0);
@@ -94,14 +101,34 @@ int LSH::getFingerprint(const int& level, const std::vector <PROFILE_TYPE>& seqP
         dot_product += kmer.second * curIndice.at(kmer.first);
     }
     //std::cout << dot_product << "\t";
-    double projectionWidth = scanner.projectionWidth[level];
-    auto rng = std::mt19937{std::random_device{}()};
-    auto dist = std::uniform_real_distribution<>(0, projectionWidth);
-    double projectionOffset = dist(rng);
+    int maxKmerNumber = 2 * ( combinations[scanner.windowSize[level]][scanner.kmerLength[level]] 
+        + (seqList.list[seqId].sequence.size() - scanner.windowSize[level]) 
+        * combinations[scanner.windowSize[level] - 1][scanner.kmerLength[level] - 1] );
 
-    double hashValue = (dot_product + projectionOffset) * 1.0 / projectionWidth;
+    double hashValue = (dot_product / maxKmerNumber + projectionOffset) * 1.0 / projectionWidth;
     bucketId = static_cast<int>(floor(hashValue));
     return bucketId;
+}
+
+
+std::vector <int> LSH::getFingerprint_minHash(const int& level, const std::vector <PROFILE_TYPE>& seqProf, 
+    const int& fingerprintNumber, const int& MOD) {
+    std::priority_queue <int, std::vector<int>, std::greater<int>> minValue;
+    std::vector <int> fingerPrint;
+
+    for(auto kmer: seqProf[level]) {
+        HASH_TYPE str = kmer.first;
+        int value = hashFunction(str) % MOD;
+        for(int i = 0; i < kmer.second; i++) {
+            minValue.emplace(value);
+        }
+    }
+
+    for(int i = 0; i < fingerprintNumber; i ++) {
+        fingerPrint.emplace_back(minValue.top());
+        minValue.pop();
+    }
+    return fingerPrint;
 }
 
 
@@ -110,27 +137,59 @@ PAIR_MAP LSH::divideBuckets(const int& levelNumber, const std::vector <int>& buc
         return pairMap;
     }
 
-    //std::cout << "+++ Begin executing hierarchical LSH with window size is " << scanner.windowSize[levelNumber] 
-        //<< " and kmer length is " << scanner.kmerLength[levelNumber] << std::endl;
-
-    //LSH
     PAIR_TYPE base = seqList.list.size();
     HomoPairs preliminaryPairs = HomoPairs(base);
-    for(int rep = 0; rep < scanner.nRepetition[levelNumber]; rep++) {
-        std::unordered_map<HASH_TYPE, double> indices;
-        std::unordered_map <int, std::vector <int> > hashBins;
-        for(auto seqId: bucket) {
-            int fingerprint = getFingerprint(levelNumber, scanner.profile[seqId], indices);
-            //std::cout << fingerprint << "\t";
-            //if((seqId+1)%10==0 && seqId) std::cout << std::endl;
-            hashBins[fingerprint].emplace_back(seqId);
+
+    int hashTable_L;
+    if(mode == 1) {
+        hashTable_L = pstable_hashTable_L;
+    } else {
+        hashTable_L = minHash_hashRable_L;
+    }
+
+    for(int rep = 0; rep < hashTable_L; rep++) {
+        std::vector <std::vector <int> > fingerprints(base, std::vector <int>());
+        std::unordered_map <std::vector <int>, std::vector <int>, vector_hash> hashBins;
+
+        //mode = 1, using LSH based on 1-stable; mode = 2, using minHash
+        if(mode == 1) {
+            for(int k = 0; k < pstable_hashTable_k; k ++) {
+                std::unordered_map<HASH_TYPE, double> indices;
+
+                auto rng = std::mt19937{std::random_device{}()};
+                auto dist = std::uniform_real_distribution<>(0, projectionWidth);
+                double projectionOffset = dist(rng);
+
+                for(auto seqId: bucket) {
+                    int fingerprint = getFingerprint_pStable
+                        (levelNumber, scanner.profile[seqId], indices, seqId, projectionOffset);
+                    fingerprints[seqId].emplace_back(fingerprint);
+                }
+            }
+        } else {  
+            std::random_device rd;
+            std::mt19937 gen(rd());
+            std::uniform_int_distribution<int> distribution;
+            int MOD = distribution(gen);
+
+            for(auto seqId: bucket) {
+                fingerprints[seqId] = getFingerprint_minHash(levelNumber, scanner.profile[seqId], 
+                    minHash_hashTable_k, MOD);
+            }
         }
 
+        for(auto seqId: bucket) {
+            //std::cout << seqId << "\t";
+            //for(auto f: fingerprints[seqId]) std::cout << f << "\t";
+            //std::cout << std::endl;         
+            hashBins[fingerprints[seqId]].emplace_back(seqId);
+        }
+        
         for(auto bin: hashBins) {
             int binSize = bin.second.size();
             for(int i = 0; i < binSize; i ++) {
                 for(int j = i + 1; j < binSize; j ++) {
-                    preliminaryPairs.addPair(bin.second[i], bin.second[j], 1.0 / scanner.nRepetition[levelNumber]);
+                    preliminaryPairs.addPair(bin.second[i], bin.second[j], 1.0 / hashTable_L);
                 }
             }
         }
@@ -147,8 +206,8 @@ PAIR_MAP LSH::divideBuckets(const int& levelNumber, const std::vector <int>& buc
     //Concatenate sequence pairs using union sets
     UnionFind Union = UnionFind(bucketSize);
     for(auto p: preliminaryPairs.pairs) {
-        if(p.second >= similarityThreshold[levelNumber]) {
-            int renumFirst = renumber[p.first/base], renumSecond = renumber[p.first%base];
+        if(p.second >= similarityThreshold) {
+            int renumFirst = renumber[p.first / base], renumSecond = renumber[p.first % base];
             if(!Union.connected(renumFirst, renumSecond)) {
                 Union.merge(renumFirst, renumSecond);
             }
@@ -180,7 +239,6 @@ PAIR_MAP LSH::divideBuckets(const int& levelNumber, const std::vector <int>& buc
             if(bucketElementSize > 1) {
                 PAIR_MAP subMap;
                 for(int i = 0; i < bucketElementSize; i ++) {
-                    //std::cout << bucketElement.second[i] << " ";
                     for(int j = i + 1; j < bucketElementSize; j ++) {
                         PAIR_TYPE key = bucketElement.second[i] * base + bucketElement.second[j];
                         subMap[key] = preliminaryPairs.pairs[key];
