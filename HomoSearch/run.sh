@@ -13,4 +13,4 @@ make -j
 #rm -rf ${OUTPUT_DIR}
 #mkdir ${OUTPUT_DIR}
 
-./hierarchical_lsh -m $1 -t $2 ${INPUT_FASTA} ${OUTPUT_DIR}
+./hierarchical_lsh -m $1 -t $2 ${INPUT_FASTA} ${OUTPUT_DIR} > ${OUTPUT_DIR}/log.txt
