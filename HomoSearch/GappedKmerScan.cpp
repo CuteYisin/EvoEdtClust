@@ -23,6 +23,7 @@ GappedKmerScan::~GappedKmerScan() { }
 void GappedKmerScan::generateIndices(int levelNow) {
     std::vector <int> indices;
     for(int i = 1; i < windowSize[levelNow]; ++ i) {
+        //Start with i and search for index combinations that meet the w constraints
         dfsIndices(levelNow, i, indices);
     }
 }
@@ -31,7 +32,7 @@ void GappedKmerScan::generateIndices(int levelNow) {
 void GappedKmerScan::dfsIndices(int levelNow, int now, std::vector <int>& indices) {
     indices.emplace_back(now);
     if((int)indices.size() == kmerLength[levelNow] - 1) {
-        otherIndices[levelNow].emplace_back(indices);
+        otherIndices[levelNow].emplace_back(indices);    //Store eligible index combinations
         indices.pop_back();
         return;
     }

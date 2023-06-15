@@ -1,8 +1,7 @@
 #include "HomoSearch.h"
-#include "vector_unordered_map.h"
 
 
-HomoPairs::HomoPairs(PAIR_TYPE& base): base(base) {
+HomoPairs::HomoPairs() {
     pairs = PAIR_MAP ();
 }
 
@@ -10,7 +9,7 @@ HomoPairs::HomoPairs(PAIR_TYPE& base): base(base) {
 HomoPairs::~HomoPairs() {}
 
 
-void HomoPairs::addPair(const int& i, const int& j, double sim) {
+void HomoPairs::addPair(const int& i, const int& j, const PAIR_TYPE& base, double sim) {
     pairs[i * base + j] += sim;
 }
 
@@ -26,9 +25,9 @@ LSH::LSH(const SequenceList& seqList, const GappedKmerScan& scanner, const int& 
     scanner(scanner),
     mode(mode),
     pstable_hashTable_k(3),
-    pstable_hashTable_L(30),
+    pstable_hashTable_L(50),
     minHash_hashTable_k(2),
-    minHash_hashRable_L(50),
+    minHash_hashRable_L(100),
     similarityThreshold(similarityThreshold),
     projectionWidth(0.1),
     table_size(100000),
@@ -40,7 +39,7 @@ LSH::LSH(const SequenceList& seqList, const GappedKmerScan& scanner, const int& 
         cauchyTable = std::vector<double> (table_size + 5, 0); 
         combinations = std::vector <std::vector <int> > (11, std::vector <int> (11, 0));
 
-        result = PAIR_MAP();
+        result = std::vector <PAIR>();
 }
 
 
@@ -72,6 +71,7 @@ void LSH::generateCombinations() {
 }
 
 
+//The hash function is choosen in MinHash
 int LSH::hashFunction(const HASH_TYPE& str){
     int hash = 5381;
     int c, index = 0;
@@ -100,7 +100,8 @@ int LSH::getFingerprint_pStable(const int& level, const std::vector <PROFILE_TYP
         }
         dot_product += kmer.second * curIndice.at(kmer.first);
     }
-    //std::cout << dot_product << "\t";
+
+    //Normalized denominator: twice the total number of gapped kmers that the sequence can produce
     int maxKmerNumber = 2 * ( combinations[scanner.windowSize[level]][scanner.kmerLength[level]] 
         + (seqList.list[seqId].sequence.size() - scanner.windowSize[level]) 
         * combinations[scanner.windowSize[level] - 1][scanner.kmerLength[level] - 1] );
@@ -132,13 +133,9 @@ std::vector <int> LSH::getFingerprint_minHash(const int& level, const std::vecto
 }
 
 
-PAIR_MAP LSH::divideBuckets(const int& levelNumber, const std::vector <int>& bucket, const PAIR_MAP& pairMap) {
-    if(levelNumber == scanner.levelNumber) {
-        return pairMap;
-    }
-
+void LSH::divideBuckets(const int& levelNumber, const std::vector <int>& bucket) {
     PAIR_TYPE base = seqList.list.size();
-    HomoPairs preliminaryPairs = HomoPairs(base);
+    HomoPairs preliminaryPairs;     //After L LSHs, the collision probabilities between sequence pairs are recorded
 
     int hashTable_L;
     if(mode == 1) {
@@ -179,9 +176,6 @@ PAIR_MAP LSH::divideBuckets(const int& levelNumber, const std::vector <int>& buc
         }
 
         for(auto seqId: bucket) {
-            //std::cout << seqId << "\t";
-            //for(auto f: fingerprints[seqId]) std::cout << f << "\t";
-            //std::cout << std::endl;         
             hashBins[fingerprints[seqId]].emplace_back(seqId);
         }
         
@@ -189,13 +183,13 @@ PAIR_MAP LSH::divideBuckets(const int& levelNumber, const std::vector <int>& buc
             int binSize = bin.second.size();
             for(int i = 0; i < binSize; i ++) {
                 for(int j = i + 1; j < binSize; j ++) {
-                    preliminaryPairs.addPair(bin.second[i], bin.second[j], 1.0 / hashTable_L);
+                    preliminaryPairs.addPair(bin.second[i], bin.second[j], base, 1.0 / hashTable_L);
                 }
             }
         }
     }
 
-    //Discrete primitive point sets
+    //Discrete primitive point sets, so can speed up union set
     int bucketSize = bucket.size();
     int order = 0;
     std::unordered_map <int, int> renumber;
@@ -207,7 +201,8 @@ PAIR_MAP LSH::divideBuckets(const int& levelNumber, const std::vector <int>& buc
     UnionFind Union = UnionFind(bucketSize);
     for(auto p: preliminaryPairs.pairs) {
         if(p.second >= similarityThreshold) {
-            int renumFirst = renumber[p.first / base], renumSecond = renumber[p.first % base];
+            int renumFirst = renumber[p.first / base], 
+                renumSecond = renumber[p.first % base];
             if(!Union.connected(renumFirst, renumSecond)) {
                 Union.merge(renumFirst, renumSecond);
             }
@@ -219,38 +214,35 @@ PAIR_MAP LSH::divideBuckets(const int& levelNumber, const std::vector <int>& buc
     for(int i = 0; i < bucketSize; i ++) {
         newbBuckets[Union.find(i)].emplace_back(bucket[i]);
     }
-    for(auto x: newbBuckets) {
+    /*for(auto x: newbBuckets) {
         for(auto e: x.second) {
             std::cout << e << "\t";
         }
         std::cout << std::endl;
-    }
+    }*/
 
     //Hierarchical iteration to determine if convergence is achieved
     std::cout << "+++ End executing hierarchical LSH with window size is " << scanner.windowSize[levelNumber] 
         << " and kmer length is " << scanner.kmerLength[levelNumber] << std::endl;
     std::cout << "+++ In this step " << newbBuckets.size() << " area(s) are delineated.\n" << std::endl;
-    if(newbBuckets.size() == 1) {
-        return preliminaryPairs.pairs;
-    } else {
-        PAIR_MAP totalMap;
+    
+    if(newbBuckets.size() == 1 || levelNumber == scanner.levelNumber - 1) {
+        //If only one cluster exists in this LSH, all sequences in the cluster are considered similar
         for(auto bucketElement: newbBuckets) {
-            int bucketElementSize = bucketElement.second.size();
-            if(bucketElementSize > 1) {
-                PAIR_MAP subMap;
-                for(int i = 0; i < bucketElementSize; i ++) {
-                    for(int j = i + 1; j < bucketElementSize; j ++) {
-                        PAIR_TYPE key = bucketElement.second[i] * base + bucketElement.second[j];
-                        subMap[key] = preliminaryPairs.pairs[key];
-                    }
-                }
-                PAIR_MAP tmp = divideBuckets(levelNumber + 1, bucketElement.second, subMap);
-                for(auto element: tmp) {
-                    totalMap.emplace(element.first, element.second);
+            int bucketSize = bucketElement.second.size();
+            for(int i = 0; i < bucketSize; i ++) {
+                for(int j = i + 1; j < bucketSize; j ++) {
+                    result.push_back({bucketElement.second[i], bucketElement.second[j]});
                 }
             }
         }
-        return totalMap;
+    } else {
+        for(auto bucketElement: newbBuckets) {
+            int bucketElementSize = bucketElement.second.size();
+            if(bucketElementSize > 1) {
+                divideBuckets(levelNumber + 1, bucketElement.second);
+            }
+        }
     }
 }
 
@@ -264,21 +256,17 @@ void LSH::work() {
     for(int i = 0; i < sequenceNumber; i ++) {
         originalBucket.emplace_back(i);
     }
-    result = divideBuckets(0, originalBucket, PAIR_MAP());
+    divideBuckets(0, originalBucket);
 }
 
 
 void LSH::dumpToFile(const std::string& outputFilename) {
     std::ofstream ofs(outputFilename);
     long long pairNum = 0;
-    PAIR_TYPE base = seqList.list.size();
     if(ofs.is_open()) {
         for(auto p: result) {
-            if(p.second >= 0.3) {
-                ofs << seqList.list[p.first/base].header << "\t" << seqList.list[p.first%base].header 
-                    << "\t" << p.second << "\n";
-                pairNum ++;
-            }
+            ofs << seqList.list[p.first].header << "\t" << seqList.list[p.second].header << "\n";
+            pairNum ++;
         }
         ofs.flush();
         ofs.close();

@@ -9,10 +9,12 @@
 #include <utility>
 #include <unordered_map>
 #include <queue>
+#include "other_unordered_map.h"
 #include "GappedKmerScan.h"
 #include "UnionFind.h"
 
 
+typedef std::pair <int, int> PAIR;
 typedef unsigned long long PAIR_TYPE;
 typedef std::unordered_map <PAIR_TYPE, double> PAIR_MAP;
 
@@ -20,11 +22,10 @@ typedef std::unordered_map <PAIR_TYPE, double> PAIR_MAP;
 class HomoPairs {
     public:
         PAIR_MAP pairs;
-        PAIR_TYPE base;
 
-        HomoPairs(PAIR_TYPE&);
+        HomoPairs();
         ~HomoPairs();
-        void addPair(const int&, const int&, double);
+        void addPair(const int&, const int&, const PAIR_TYPE&, double);
 };
 
 
@@ -60,10 +61,10 @@ class LSH: public HomoSearch {
         int getFingerprint_pStable(const int&, const std::vector <PROFILE_TYPE>&, 
             std::unordered_map <HASH_TYPE, double>&, const int&, const double&);
         std::vector <int> getFingerprint_minHash(const int&, const std::vector <PROFILE_TYPE>&, const int&, const int&);
-        PAIR_MAP divideBuckets(const int&, const std::vector <int>&, const PAIR_MAP&);
+        void divideBuckets(const int&, const std::vector <int>&);
 
     public:
-        PAIR_MAP result;
+        std::vector <PAIR> result;
 
         LSH(const SequenceList&, const GappedKmerScan&, const int&, const double&);
         ~LSH();

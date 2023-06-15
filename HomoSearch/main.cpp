@@ -60,7 +60,7 @@ int main(int argc, char* argv[]) {
 
 	LSH lsh(seqList, scanner, mode, similarityThreshold);
 	lsh.work();
-	lsh.dumpToFile(output + "/output.pairs");
+	lsh.dumpToFile(output);
 
 	return 0;
 }
