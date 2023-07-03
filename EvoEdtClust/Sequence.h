@@ -31,6 +31,9 @@ class ClusterNode {
 
         ClusterNode(const SequenceList&, const std::vector <int>&, int, double);
         ~ClusterNode();
+
+        //bool operator< (const ClusterNode&) const; // return n > other.n;
+
         void show();
 };
 
@@ -38,6 +41,7 @@ class ClusterNode {
 class ClusterTree {
     public:
         std::queue <ClusterNode> bfsOrder;
+        //std::priority_queue <ClusterNode> bfsOrder;
 
         ClusterTree(const SequenceList&);
         ~ClusterTree();

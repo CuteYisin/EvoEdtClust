@@ -30,7 +30,6 @@ void SequenceList::loadFromFasta_dumpIndexedHeader(const std::string& fastaFile,
         if (header[0] == '>') {
             std::getline(ifs, sequence);
             data.emplace_back(sequence);
-            //ofs << index << "\t" << header << "\n";
             ofs << header << "\n";
             ++ index;
         }

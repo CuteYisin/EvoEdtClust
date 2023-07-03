@@ -8,8 +8,8 @@
 
 class ParameterGenerator {
     public:
+        static std::vector <int> w, k;
         static double computeSimFromWK(const int&, const int&, const double&);
-        static void updateWKFromSim(const double&, int&, int&, const double&);
 };
 
 

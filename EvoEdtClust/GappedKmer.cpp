@@ -1,37 +1,12 @@
 #include "GappedKmer.h"
 
+//w-k (w,k)
+std::vector <int> ParameterGenerator::w = {2,4,5,7};
+std::vector <int> ParameterGenerator::k = {2,3,4,6};
+
 
 double ParameterGenerator::computeSimFromWK(const int& w, const int& k, const double& avgL) {
     return 1.0 - (1.0-w*(k-1)/avgL/k) / k;
-}
-
-
-//w as small as possible
-//k as huge as possible
-//void ParameterGenerator::updateWKFromSim(const double& sim, int& w, int& k, const double& avgL) {
-//    k = 2;
-//    w = avgL * k/(k-1) * (1.0-(1.0-sim)*k);
-//    while(k <= 6 && (w < k || w > avgL/2)) {
-//        k ++;
-//        w = avgL * k/(k-1) * (1.0-(1.0-sim)*k);
-//    }
-//    if(k > 6) {
-//        std::cerr << "!!! Cannot find good w and k with similarity " << sim << std::endl;
-//        exit(-1);
-//    }
-//}
-
-void ParameterGenerator::updateWKFromSim(const double& sim, int& w, int& k, const double& avgL) {
-    for(k = 4; k >= 2; k --) {
-        w = avgL * k / (k - 1) * (1.0 - (1.0 - sim) * k);
-        if(w >= k && w < avgL) {
-            break;
-        }
-    }
-    if(k < 2) {
-        std::cerr << "!!! Cannot find good w and k with similarity " << sim << std::endl;
-        exit(-1);
-    }
 }
 
 
