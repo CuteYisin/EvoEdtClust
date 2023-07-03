@@ -14,6 +14,7 @@ void showUsage(std::string name) {
 		<< std::endl;
 }
 
+
 int main(int argc, char* argv[]) {
 	std::ios_base::sync_with_stdio(false);
 	std::cin.tie(NULL);
@@ -51,52 +52,33 @@ int main(int argc, char* argv[]) {
 		}
 	}
 	
-	auto st = clock();
     SequenceList seqList;
 	std::string headerIndicesFile = outputDir + "/headerIndices.out";
 	seqList.loadFromFasta_dumpIndexedHeader(inputFastaFile, headerIndicesFile);
-	auto ed = clock();
-	//std::cerr << "~~~ Load data time usage " << (double)(ed - st ) / CLOCKS_PER_SEC << std::endl;
         
-	st = clock();
 	ClusterTree tree(seqList);
 	std::vector <ClusterNode> leaves;
 
 	while(!tree.bfsOrder.empty()) {
-		auto& node = tree.bfsOrder.front();
-		if(node.n >= 10 && node.level <= 5 &&
-			node.expectedSimLowBound - similarityThreshold < -1e-6) {
+		auto& node = tree.bfsOrder.front(); //.top() when using priority queue;
+		//hard part
+		if(node.n >= 5 && node.level < (int)ParameterGenerator::w.size()) {
+			int w = ParameterGenerator::w[node.level];
+			int k = ParameterGenerator::k[node.level];
+			double sim = ParameterGenerator::computeSimFromWK(w, k, node.avgL);
 
-			double nextSimLowBound = node.expectedSimLowBound;
-			int w = 0, k = 0;
-			if(node.level == 0) {
-				w = 2, k = 2;
-				nextSimLowBound = ParameterGenerator::computeSimFromWK(w, k, node.avgL);
-			} else {
-				nextSimLowBound = std::min(similarityThreshold, node.expectedSimLowBound + 0.2);
-				ParameterGenerator::updateWKFromSim(nextSimLowBound, w, k, node.avgL);
-			}
+			std::cout << "+++ w = " << w << ", k = " << k << ", sim = " << sim << std::endl;
 
-			std::cout << "\n=== Now wish partition these " << node.n << " sequences into clusters with expected similariy " << nextSimLowBound << std::endl;
-			std::cout << "+++ w = " << w << ", k = " << k << std::endl;
-
-			auto s1 = clock();
 			GappedKmerEmbedding gkmer(node, w, k);
 			gkmer.scan();
-			//std::cerr << "~~~ gkmer data time usage " << (double)(clock() - s1) / CLOCKS_PER_SEC << std::endl;
 
-			s1 = clock();
 			PStableLSH plsh(node, gkmer);
 			plsh.scanPars();
-			//std::cerr << "~~~ plsh scanpars time usage " << (double)(clock() - s1) / CLOCKS_PER_SEC << std::endl;
-
-			s1 = clock();
 			plsh.work();
-			//std::cerr << "~~~ plsh time usage " << (double)(clock() - s1) / CLOCKS_PER_SEC << std::endl;
 
 			for(auto& x: plsh.subIdList) {
 				auto& idList = x.second;
-				ClusterNode newNode(seqList, idList, node.level + 1, nextSimLowBound);
+				ClusterNode newNode(seqList, idList, node.level + 1, sim);
 				tree.bfsOrder.push(newNode);
 			}
 		} else {
@@ -104,15 +86,11 @@ int main(int argc, char* argv[]) {
 		}
 		tree.bfsOrder.pop();
 	}
-	std::cerr << "~~~ BuildCluster data time usage " << (double)(clock() - st ) / CLOCKS_PER_SEC << std::endl;
 
 	std::cout << "===\n===\n=== " << std::endl;
 	long long nPairs = 0;
 	for(auto& leaf: leaves) {
 		nPairs += leaf.n * (leaf.n-1) / 2;
-		if(leaf.n >= 5) {
-			//leaf.show();
-		}
 	}
 
 	std::cout << "=== Finally, " << leaves.size() << " clusters are found.. " << std::endl;

@@ -34,11 +34,13 @@ class Fingerprint {
 };
 
 
-typedef unsigned int HASHED_KMER; 
+typedef unsigned long long HASHED_KMER; 
 
 
 class PStableLSH {
     private:
+        static int rdSeed;
+        int nextRdSeed();
         double genCauchy();
         double genUniInSigma();
 
@@ -46,7 +48,6 @@ class PStableLSH {
 
         double __f(double);
         double getOptimalSigma();
-        int getOptimalT();
 
 
     public:
