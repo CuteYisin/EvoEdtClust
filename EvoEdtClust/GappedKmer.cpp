@@ -1,8 +1,8 @@
 #include "GappedKmer.h"
 
 //w-k (w,k)
-std::vector <int> ParameterGenerator::w = {2,4,5,7};
-std::vector <int> ParameterGenerator::k = {2,3,4,6};
+std::vector <int> ParameterGenerator::w = {1, 2, 3, 4, 5};
+std::vector <int> ParameterGenerator::k = {1, 2, 2, 3, 4};
 
 
 double ParameterGenerator::computeSimFromWK(const int& w, const int& k, const double& avgL) {

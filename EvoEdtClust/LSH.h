@@ -6,6 +6,7 @@
 #include <cmath>
 #include <random>
 #include <ctime>
+#include <map>
 
 #include "Sequence.h"
 #include "GappedKmer.h"
@@ -47,24 +48,35 @@ class PStableLSH {
         inline HASHED_KMER animoAcidHash(const char&);
 
         double __f(double);
+        double __rho(double, double, double);
+        double getQ1(int, int, double);
+        double getQ5(int, int, double);
+        double getQ20(int, int, double);
+        double getQ80(int, int, double);
+        double getQ95(int, int, double);
         double getOptimalSigma();
+        int getOptimalQ(double);
+        int getOptimalT(double, int);
 
 
     public:
         const ClusterNode& node;
         const GappedKmerEmbedding& gke;
 
-        double targetFP, targetP2, targetP1;
-        double sigma;
+        double sim;
+        double targetP1, targetP2, Q1, Q5, Q20, Q80, Q95;
+        double sigma, gamma;
         int Q, T;
-
+        
         DSU dsu;
         std::unordered_map <int, std::vector<int> > subIdList;
+        // std::map <int, std::vector<int> > subIdList;
 
+        std::vector <double> rho, targetFN;
         std::unordered_map <HASHED_KMER, std::vector <double> > a;
         std::vector <double> b;
 
-        PStableLSH(const ClusterNode&, const GappedKmerEmbedding&);
+        PStableLSH(const ClusterNode&, const GappedKmerEmbedding&, const double&);
         ~PStableLSH();
 
         void scanPars();
