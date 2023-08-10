@@ -23,8 +23,8 @@ fi
 #INPUT_FASTA=/data/cabins/yxxiang/real/metaFamily_8339.fasta
 #OUTPUT_DIR=./output/metaFamily_8339
 
-INPUT_FASTA=/data/cabins/yxxiang/real/Homo_sapiens_human_37744.fasta
-OUTPUT_DIR=./output/Homo_sapiens_human_37744
+#INPUT_FASTA=/data/cabins/yxxiang/real/Homo_sapiens_human_37744.fasta
+#OUTPUT_DIR=./output/Homo_sapiens_human_37744
 #GDDIR=/data/cabins/yxxiang/real/result/Homo_sapiens_human_37744
 
 #INPUT_FASTA=/data/cabins/yxxiang/real/MERC_10000000.fasta
