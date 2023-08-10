@@ -61,7 +61,7 @@ struct FingerprintHasher {
 
 PStableLSH::PStableLSH(const ClusterNode& node, const GappedKmerEmbedding& gke):
     node(node), gke(gke), targetRho(0.9), gamma(1.0), dsu(node.n), 
-    maxT({50, 10}) {
+    maxT({30, 10}) {
         std::cout << "=== Partitioning this set use p-stable LSH " << std::endl;
         Q5 = gke.avgNGKmer * 2.0 * getQ5(gke.w, gke.k, node.avgL);
         Q80 = gke.avgNGKmer * 2.0 * getQ80(gke.w, gke.k, node.avgL);
@@ -283,7 +283,8 @@ double PStableLSH::sample() {
     }
 
     std::random_device rd;
-    std::mt19937 generator(rd());
+    // std::mt19937 generator(rd());
+    std::mt19937 generator(nextRdSeed());
     std::uniform_int_distribution<int> distribution(0, node.n - 1);
 
     std::set< std::pair <int, int>, PairComparator> selected_pairs;

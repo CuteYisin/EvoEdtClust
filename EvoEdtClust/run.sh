@@ -5,6 +5,14 @@ sim=0.9
 INPUT_FASTA=/data/cabins/yxxiang/simulate/testdata50-10.fa
 OUTPUT_DIR=./output/testdata50-10
 
+if [ ! -d "./outputR" ]; then
+    mkdir "./output"
+fi
+
+if [ ! -d "OUTPUT_DIR" ]; then
+    mkdir "OUTPUT_DIR"
+fi
+
 #INPUT_FASTA=/data/cabins/yxxiang/simulate/testdata50-1.fa
 #OUTPUT_DIR=./output/testdata50-1
 #groundtruth_file=/data/cabins/yxxiang/simulate/result/testdata50-10/groundTruth/groundTruth_0.8.txt
@@ -15,8 +23,8 @@ OUTPUT_DIR=./output/testdata50-10
 #INPUT_FASTA=/data/cabins/yxxiang/real/metaFamily_8339.fasta
 #OUTPUT_DIR=./output/metaFamily_8339
 
-#INPUT_FASTA=/data/cabins/yxxiang/real/Homo_sapiens_human_37744.fasta
-#OUTPUT_DIR=./output/Homo_sapiens_human_37744
+INPUT_FASTA=/data/cabins/yxxiang/real/Homo_sapiens_human_37744.fasta
+OUTPUT_DIR=./output/Homo_sapiens_human_37744
 #GDDIR=/data/cabins/yxxiang/real/result/Homo_sapiens_human_37744
 
 #INPUT_FASTA=/data/cabins/yxxiang/real/MERC_10000000.fasta
