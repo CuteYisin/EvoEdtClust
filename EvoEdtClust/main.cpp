@@ -61,8 +61,7 @@ int main(int argc, char* argv[]) {
 
 	while(!tree.bfsOrder.empty()) {
 		auto& node = tree.bfsOrder.front();
-		//hard part
-		if(node.n >= 10 && node.level < (int)ParameterGenerator::w.size()) {
+		if(node.n > 10 && node.level< (int)ParameterGenerator::w.size()) {
 			int w = ParameterGenerator::w[node.level];
 			int k = ParameterGenerator::k[node.level];
 			double sim = ParameterGenerator::computeSimFromWK(w, k, node.avgL);
@@ -72,7 +71,7 @@ int main(int argc, char* argv[]) {
 			GappedKmerEmbedding gkmer(node, w, k);
 			gkmer.scan();
 
-			PStableLSH plsh(node, gkmer, sim);
+			PStableLSH plsh(node, gkmer);
 			plsh.scanPars();
 			plsh.work();
 			std::cout << std::endl;
@@ -120,6 +119,7 @@ int main(int argc, char* argv[]) {
 			ofs << "#_Cluster_" << nCluster << "\n";
 			for(int i = 0; i < leaf.n; i ++) {
 				auto& id = leaf.idList[i];
+				// ofs << seqList.data[id] << "\n";
 				ofs << headerList[id] << "\n";
 			}
 		}

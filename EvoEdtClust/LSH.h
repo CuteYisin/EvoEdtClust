@@ -7,6 +7,8 @@
 #include <random>
 #include <ctime>
 #include <map>
+#include <set>
+#include <algorithm>
 
 #include "Sequence.h"
 #include "GappedKmer.h"
@@ -49,11 +51,8 @@ class PStableLSH {
 
         double __f(double);
         double __rho(double, double, double);
-        double getQ1(int, int, double);
         double getQ5(int, int, double);
-        double getQ20(int, int, double);
         double getQ80(int, int, double);
-        double getQ95(int, int, double);
         double getOptimalSigma();
         int getOptimalQ(double);
         int getOptimalT(double, int);
@@ -63,8 +62,8 @@ class PStableLSH {
         const ClusterNode& node;
         const GappedKmerEmbedding& gke;
 
-        double sim;
-        double targetP1, targetP2, Q1, Q5, Q20, Q80, Q95;
+        double similarityPairEstimation;
+        double targetP1, targetP2, Q5, Q80, targetRho;
         double sigma, gamma;
         int Q, T;
         
@@ -72,12 +71,15 @@ class PStableLSH {
         std::unordered_map <int, std::vector<int> > subIdList;
         // std::map <int, std::vector<int> > subIdList;
 
-        std::vector <double> rho, targetFN;
+        std::vector <int> maxT;
         std::unordered_map <HASHED_KMER, std::vector <double> > a;
         std::vector <double> b;
 
-        PStableLSH(const ClusterNode&, const GappedKmerEmbedding&, const double&);
+        PStableLSH(const ClusterNode&, const GappedKmerEmbedding&);
         ~PStableLSH();
+
+        double editDistanceCalculate(const std::string&, const std::string&);
+        double sample();
 
         void scanPars();
         void updatePars();

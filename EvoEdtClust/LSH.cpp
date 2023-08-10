@@ -59,18 +59,15 @@ struct FingerprintHasher {
 };
 
 
-PStableLSH::PStableLSH(const ClusterNode& node, const GappedKmerEmbedding& gke, const double& sim):
-    node(node), gke(gke), sim(sim), gamma(1.0), dsu(node.n), 
-    rho({0.75, 0.9, 0.9, 0.9}),
-    targetFN({0.01, 0.01, 0.05, 0.1}) {
+PStableLSH::PStableLSH(const ClusterNode& node, const GappedKmerEmbedding& gke):
+    node(node), gke(gke), targetRho(0.9), gamma(1.0), dsu(node.n), 
+    maxT({50, 10}) {
         std::cout << "=== Partitioning this set use p-stable LSH " << std::endl;
-        Q1 = gke.avgNGKmer * 2.0 * getQ1(gke.w, gke.k, node.avgL);
         Q5 = gke.avgNGKmer * 2.0 * getQ5(gke.w, gke.k, node.avgL);
-        Q20 = gke.avgNGKmer * 2.0 * getQ20(gke.w, gke.k, node.avgL);
         Q80 = gke.avgNGKmer * 2.0 * getQ80(gke.w, gke.k, node.avgL);
-        Q95 = gke.avgNGKmer * 2.0 * getQ95(gke.w, gke.k, node.avgL);
-        std::cout << "--- Q1 is " << Q1 << ", Q5 is " << Q5 << ", Q20 is " << Q20 
-            << ", Q80 is " << Q80 << ", and Q95 is " << Q95 << std::endl;
+        std::cout << "--- Q5 is " << Q5 << ", Q80 is " << Q80<< std::endl;
+        
+        similarityPairEstimation = sample();
         sigma = getOptimalSigma();
         Q = getOptimalQ(sigma);
         T = getOptimalT(sigma, Q);
@@ -102,154 +99,57 @@ double PStableLSH::__rho(double sigma, double r1, double r2) {
 }
 
 
-// hard part ***
 double PStableLSH::getOptimalSigma() {
-    double targetRho =rho[gke.k - 1];
-    // similarButUnequal = 1 / (node.n * node.n * 0.01);
-    // targetP1 = std::pow(1.0-std::pow(similarButUnequal, 1.0/T), 1.0/Q);
-
-    // UnsimilarButEqual = 1 / (node.n * node.n * 0.83);
-    // targetP2 = std::pow(1.0-std::pow(1.0-UnsimilarButEqual, 1.0/T), 1.0/Q);
-    //targetFP = node.avgL * node.avgL / (std::pow(node.n, 2) * sim);
-    //targetFP = (1 - sim) / (double)(node.n-1) / std::log(node.avgL); // if FP related with AvgL; Prior?
-    //targetFP = 0.05 / (double)(node.n-1);
-    //targetFP = 1.0 / (double)(node.n-1) / (1.0 - std::pow(1.0 / 20.0, node.avgL));
-    //targetP2 = std::pow(targetFP, 1.0 / Q);
-    // std::cerr << "similarButUnequal = " << similarButUnequal << ", targetp1 = " << targetP1 << std::endl;
-    // std::cerr << "UnsimilarButEqual = " << UnsimilarButEqual << ", targetp2 = " << targetP2 << std::endl;
-    
-    double l = 1e-6, r = gke.avgNGKmer * 2.0;
+    double l = 1e-6, r = gke.avgNGKmer * 4.0;
     double mid = (l + r) / 2.0;
-    // while(l - r < - 1e-4) {
-    //     mid = (r + l) / 2.0;
-    //     if(__f(mid) - targetP1 < - 1e-4) {
-    //         l = mid + 1e-6;
-    //     } else {
-    //         r = mid - 1e-6;
-    //     }
-    // }
     while(l - r < - 1e-4) {
         mid = (r + l) / 2.0;
-        if(__rho(mid, Q1, Q80) - targetRho < - 1e-4) {
+        if(__rho(mid, Q5, Q80) - targetRho < - 1e-4) {
             r = mid + 1e-6;
         } else {
             l = mid - 1e-6;
         }
     }
-    //return mid * 2.0 * gke.calcNGKmer(median_l); 
     mid *= gamma; 
-    // return mid * gke.avgNGKmer * 2.0;
     return mid;
 }
 
 
 int PStableLSH::getOptimalQ(double sigma) {
-    return std::ceil(std::log(node.n) / -std::log(__f(sigma / Q80 / gamma)));
+    long long int seqNumber = node.n;
+    long long int dissimilarityPair = seqNumber * seqNumber * (1 - similarityPairEstimation);
+    if(similarityPairEstimation == 1) return 0;
+    return std::ceil(- std::log(dissimilarityPair) / std::log(__f(sigma / Q80 / gamma)));
 }
 
 int PStableLSH::getOptimalT(double sigma, int Q) {
-    double p1_Q = 1.0, x = __f(sigma / Q1 / gamma);
+    if(Q == 0) return 0;
+    double p1_Q = 1.0, x = __f(sigma / Q5 / gamma);
     for(int i = 0; i < Q; i++) {
         p1_Q *= x;
     }
-    return std::ceil(-std::log(targetFN[gke.k - 1])) / (1 - p1_Q);
-}
-
-
-double PStableLSH::getQ1(int w, int k, double l) {
-    if(w == 1 && k == 1) {
-        return -0.0004367 * l + 0.1575;
-    } else if(w == 2 && k == 2) {
-        return -0.000647 * l + 0.6234;
-    } else if(w == 3 && k == 2) {
-        return -0.001101 * l + 0.622;
-    } else if(w == 3 && k == 3) {
-        return 0.0001819 * l + 0.6861;
-    } else if(w == 4 && k == 3) {
-        return -7.222e-5 * l + 0.7186;
-    } else if(w == 5 && k == 3) {
-        return -0.0002641 * l + 0.7281;
-    } else if(w == 5 && k == 4) {
-        return 0.0002009 * l + 0.6702;
-    }
-    return 0.5;
+    if(similarityPairEstimation == 0) similarityPairEstimation = 1e-6;
+    int T = std::min((double)maxT[node.level], 
+        std::max((double)1, std::ceil(std::log(node.n * node.n * similarityPairEstimation) / p1_Q)));
+    return T;
 }
 
 
 double PStableLSH::getQ5(int w, int k, double l) {
-    if(w == 1 && k == 1) {
-        return -0.0006 * l + 0.2;
-    } else if(w == 2 && k == 2) {
-        return -0.0007714 * l + 0.6643;
-    } else if(w == 3 && k == 2) {
-        return -0.001203 * l + 0.6555;
-    } else if(w == 3 && k == 3) {
-        return 3.242e-5 * l + 0.7329;
-    } else if(w == 4 && k == 3) {
-        return -0.000204 * l + 0.7582;
+    if(w == 2 && k == 2) {
+        return -0.0009248 * l + 0.7357;
     } else if(w == 5 && k == 3) {
-        return -0.0003987 * l + 0.7656;
-    } else if(w == 5 && k == 4) {
-        return 2.203e-5 * l + 0.723;
-    }
-    return 0.5;
-}
-
-double PStableLSH::getQ20(int w, int k, double l) {
-    if(w == 1 && k == 1) {
-        return -0.00063 * l + 0.2225;
-    } else if(w == 2 && k == 2) {
-        return -0.000916 * l + 0.7102;
-    } else if(w == 3 && k == 2) {
-        return -0.001308 * l + 0.6916;
-    } else if(w == 3 && k == 3) {
-        return -8.313e-5 * l + 0.7747;
-    } else if(w == 4 && k == 3) {
-        return -0.0003313 * l + 0.7978;
-    } else if(w == 5 && k == 3) {
-        return -0.0005548 * l + 0.8093;
-    } else if(w == 5 && k == 4) {
-        return -0.0001776 * l + 0.7824;
+        return -1.587e-5 * l + 0.5808;
     }
     return 0.5;
 }
 
 
 double PStableLSH::getQ80(int w, int k, double l) {
-    if(w == 1 && k == 1) {
-        return -0.00092 * l + 0.31;
-    } else if(w == 2 && k == 2) {
-        return -0.001056 * l + 0.7816;
-    } else if(w == 3 && k == 2) {
-        return -0.0015 * l + 0.7599;
-    } else if(w == 3 && k == 3) {
-        return -0.0004936 * l + 0.8893;
-    } else if(w == 4 && k == 3) {
-        return -0.0006091 * l + 0.8832;
+    if(w == 2 && k == 2) {
+        return -0.001258 * l + 0.8684;
     } else if(w == 5 && k == 3) {
-        return -0.0008212 * l + 0.8874;
-    } else if(w == 5 && k == 4) {
-        return -0.0005698 * l + 0.8973;
-    }
-    return 0.5;
-}
-
-
-double PStableLSH::getQ95(int w, int k, double l) {
-    if(w == 1 && k == 1) {
-        return -0.00097 * l + 0.3375;
-    } else if(w == 2 && k == 2) {
-        return -0.001201 * l + 0.8275;
-    } else if(w == 3 && k == 2) {
-        return -0.00158 * l + 0.7922;
-    } else if(w == 3 && k == 3) {
-        return -0.000643 * l + 0.9361;
-    } else if(w == 4 && k == 3) {
-        return -0.0007019 * l + 0.9149;
-    } else if(w == 5 && k == 3) {
-        return -0.0008982 * l + 0.9151;
-    } else if(w == 5 && k == 4) {
-        return -0.0006897 * l + 0.9385;
+        return -0.0003876 * l + 0.692;
     }
     return 0.5;
 }
@@ -335,8 +235,97 @@ void PStableLSH::updatePars() {
 }
 
 
-void PStableLSH::work() {
+double PStableLSH::editDistanceCalculate(const std::string& str1, const std::string& str2) {
+    int len1 = str1.size(), len2 = str2.size();
+    if(! len1 || ! len2) {
+        return 0.0;
+    }
 
+    std::vector< std::vector <int>> dp(len1+1, std::vector <int>(len2+1, 0));
+    for(int i = 0; i <= len1; ++i) {
+        dp[i][0] = i;
+    }
+    for(int j = 0; j <= len2; ++j) {
+        dp[0][j] = j;
+    }
+
+    for(int i = 1; i <= len1; ++i) {
+        for(int j = 1; j <= len2; ++j) {
+            if(str1[i-1] == str2[j-1]) {
+                dp[i][j] = dp[i-1][j-1];
+            } else {
+                dp[i][j] = std::min(dp[i-1][j-1], std::min(dp[i-1][j], dp[i][j-1])) + 1;
+            }
+        }
+    }
+
+    return 1 - (double)dp[len1][len2] / std::max(len1, len2);
+}
+
+
+struct PairComparator {
+    bool operator()(const std::pair<int, int>& a, const std::pair<int, int>& b) const {
+        if (a.first < b.first) return true;
+        if (a.first > b.first) return false;
+        return a.second < b.second;
+    }
+};
+
+
+double PStableLSH::sample() {
+    int pairNumber, similarityPairNumber = 0;
+
+    double similarityThreshold = 0.5;
+    if(node.level == 0) {
+        similarityThreshold = 0.6;
+    } else if (node.level == 1) {
+        similarityThreshold = 0.3;
+    }
+
+    std::random_device rd;
+    std::mt19937 generator(rd());
+    std::uniform_int_distribution<int> distribution(0, node.n - 1);
+
+    std::set< std::pair <int, int>, PairComparator> selected_pairs;
+    if(node.n > 10000) {
+        pairNumber = 10000;
+
+        while (selected_pairs.size() < pairNumber) {
+            int random_num1 = distribution(generator), random_num2 = distribution(generator);
+            while(random_num1 == random_num2) {
+                random_num2 = distribution(generator);
+            }
+            selected_pairs.insert(std::make_pair(std::min(random_num1, random_num2), 
+                std::max(random_num1, random_num2)));
+        }
+    } else {
+        pairNumber = node.n;
+
+        std::vector<std::pair<int, int>> all_pairs;
+        for (int i = 0; i < node.n; ++i) {
+            for (int j = i + 1; j < node.n; ++j) {
+                all_pairs.push_back(std::make_pair(i, j));
+            }
+        }
+        std::shuffle(all_pairs.begin(), all_pairs.end(), generator);
+        for (int i = 0; i < pairNumber; ++i) {
+            selected_pairs.insert(all_pairs[i]);
+        }
+    }
+
+    for (const auto& pair : selected_pairs) {
+        if(editDistanceCalculate(node.seqList.data[pair.first], node.seqList.data[pair.second]) 
+            >= similarityThreshold) {
+                similarityPairNumber ++;
+        }
+    }
+    similarityPairEstimation = similarityPairNumber * 1.0 / pairNumber;
+    std::cout << "--- Now similarityPairEstimation is " << similarityPairEstimation << std::endl;
+    return similarityPairEstimation;
+}
+
+
+void PStableLSH::work() {
     for(int iter = 1; iter <= T; ++ iter) {
         //std::cout << "--- Now processing iteration " << iter << std::endl;
 
@@ -373,9 +362,9 @@ void PStableLSH::work() {
                         }
                         gkmerNumber[gkmer] ++;
                         gkmerToString[gkmer] = kmer;
-                        /// for(int k = 0; k < Q; ++ k) {
-                        ///     h[k] += a[gkmer][k];
-                        /// }
+                            for(int k = 0; k < Q; ++ k) {
+                                h[k] += a[gkmer][k];
+                            }
                     }
                 }
                 if(gke.k == 1) {
@@ -388,34 +377,10 @@ void PStableLSH::work() {
             }
 
             for(int k = 0; k < Q; ++ k) {
-                for(auto x: gkmerNumber) {
-                    h[k] += a[x.first][k] * x.second;
-                    // if(i < 3) {
-                    //     std::cout << gkmerToString[x.first] << '\t' << a[x.first][k] << '\t' << x.second << std::endl;
-                    // }
-                }
-                // if(i < 3) std::cout << std::endl;
+                table[i].key[k] = floor((h[k] + b[k]) / sigma);
             }
-            
-            // std::cout << i << ": ";
-            for(int k = 0; k < Q; ++ k) {
-                //h[k] /= gke.nGKmer[i] + gke.minNGKmer;
-                //h[k] /= 2 * gke.nGKmer[i];
-                // std::cout << h[k] << "\t";
-                table[i].key[k] = (int)((h[k] + b[k]) / sigma);
-            }
-            // std::cout << std::endl;
         }
 
-
-       // for(int i = 0; i < node.n; ++ i) {
-       //     int id = node.idList[i];
-       //     std::cout << id << ": " << node.seqList.data[id] << std::endl;
-       //     for(int k = 0; k < Q; k ++) {
-       //        std::cout << table[i].key[k] << ", ";
-       //     }
-       //     std::cout << std::endl;
-       // }
         
         //Merge dsu if they shared the same fingerprint
         std::unordered_map <Fingerprint, int, FingerprintHasher> bucket;
@@ -426,36 +391,25 @@ void PStableLSH::work() {
                 dsu.merge(bucket[table[i]], i);
             }
         }
-
-        std::unordered_map <int, std::vector<int> > glanceDSU;
-        for(int i = 0; i < node.n; ++ i) {
-            if(glanceDSU.count(dsu.find(i)) == 0) {
-                glanceDSU[dsu.find(i)] = std::vector <int> ();
-            }
-            glanceDSU[dsu.find(i)].emplace_back(node.idList[i]);
-        }
-
-
-    //    std::cout << "~~~ Glance DSU in" << T << std::endl;
-    //    for(auto v: glanceDSU) {
-    //        std::cout << v.first << ": ";
-    //        for(auto x: v.second) {
-    //            std::cout << x << ", ";
-    //        }
-    //        std::cout << std::endl;
-    //    }
-        
     }
 
     //Scan the dsu, and parse it to diffent sequence idlist
     subIdList = std::unordered_map <int, std::vector<int> > ();
     // subIdList = std::map <int, std::vector<int> > ();
-    for(int i = 0; i < node.n; ++ i) {
-        if(subIdList.count(dsu.find(i)) == 0) {
-            subIdList[dsu.find(i)] = std::vector <int> ();
+    if(T == 0) {
+        subIdList[0] = std::vector <int> ();
+        for(int i = 0; i < node.n; ++ i) {
+            subIdList[0].emplace_back(node.idList[i]);
         }
-        subIdList[dsu.find(i)].emplace_back(node.idList[i]);
+    } else {
+        for(int i = 0; i < node.n; ++ i) {
+            if(subIdList.count(dsu.find(i)) == 0) {
+                subIdList[dsu.find(i)] = std::vector <int> ();
+            }
+            subIdList[dsu.find(i)].emplace_back(node.idList[i]);
+        }
     }
+    
     if(subIdList.size() > 1) {
         for(auto x: subIdList) {
             for(auto y: x.second) {
