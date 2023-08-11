@@ -1,9 +1,10 @@
 #include <cstring>
-#include <ctime>
+#include <chrono>
 
 #include "Sequence.h"
 #include "GappedKmer.h"
 #include "LSH.h"
+#include "Timer.h"
 
 
 void showUsage(std::string name) {
@@ -51,11 +52,13 @@ int main(int argc, char* argv[]) {
 			}
 		}
 	}
-	
-    SequenceList seqList;
+
+auto st0 = Timer::set_start();
+	SequenceList seqList;
 	std::string headerIndicesFile = outputDir + "/headerIndices.out";
 	seqList.loadFromFasta_dumpIndexedHeader(inputFastaFile, headerIndicesFile);
-        
+Timer::time_profile("-- Load sequences: ", st0);
+
 	ClusterTree tree(seqList);
 	std::vector <ClusterNode> leaves;
 
@@ -68,14 +71,22 @@ int main(int argc, char* argv[]) {
 			double sim = ParameterGenerator::computeSimFromWK(w, k, node.avgL);
 
 			std::cout << "+++ w = " << w << ", k = " << k << ", sim = " << sim << std::endl;
-
+			
+auto st1 = Timer::set_start();
 			GappedKmerEmbedding gkmer(node, w, k);
 			gkmer.scan();
+Timer::time_profile("-- GKM embedding: ", st1);
 
+auto st2 = Timer::set_start();
 			PStableLSH plsh(node, gkmer, sim);
+Timer::time_profile("-- LSH init: ", st2);
+auto st3 = Timer::set_start();
 			plsh.scanPars();
+Timer::time_profile("-- LSH scan: ", st3);
+auto st4 = Timer::set_start();
 			plsh.work();
-
+Timer::time_profile("-- LSH work: ", st4);
+ 
 			for(auto& x: plsh.subIdList) {
 				auto& idList = x.second;
 				ClusterNode newNode(seqList, idList, node.level + 1, sim);
@@ -86,6 +97,9 @@ int main(int argc, char* argv[]) {
 		}
 		tree.bfsOrder.pop();
 	}
+
+
+
 
 	std::cout << "===\n===\n=== " << std::endl;
 	long long nPairs = 0;
