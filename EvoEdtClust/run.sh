@@ -5,12 +5,12 @@ sim=0.9
 INPUT_FASTA=/data/cabins/yxxiang/simulate/testdata50-10.fa
 OUTPUT_DIR=./output/testdata50-10
 
-if [ ! -d "./outputR" ]; then
+if [ ! -d "./output" ]; then
     mkdir "./output"
 fi
 
-if [ ! -d "OUTPUT_DIR" ]; then
-    mkdir "OUTPUT_DIR"
+if [ ! -d ${OUTPUT_DIR} ]; then
+    mkdir ${OUTPUT_DIR}
 fi
 
 #INPUT_FASTA=/data/cabins/yxxiang/simulate/testdata50-1.fa

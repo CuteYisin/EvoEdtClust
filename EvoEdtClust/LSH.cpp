@@ -348,8 +348,8 @@ void PStableLSH::work() {
             auto& s = node.seqList.data[id];
             const int& l = s.length();
 
-            std::map <HASHED_KMER, int> gkmerNumber;
-            std::unordered_map <HASHED_KMER, std::string> gkmerToString;
+            // std::unordered_map <HASHED_KMER, int> gkmerNumber;
+            // std::unordered_map <HASHED_KMER, std::string> gkmerToString;
             for(int p = 0; p < l; ++ p) {
                 for(auto& mask: gke.otherIndices) {
                     if(p + mask.back() < l) {
@@ -361,8 +361,8 @@ void PStableLSH::work() {
                             gkmer ^= animoAcidHash(s[p+j]);
                             kmer += s[p+j];
                         }
-                        gkmerNumber[gkmer] ++;
-                        gkmerToString[gkmer] = kmer;
+                        // gkmerNumber[gkmer] ++;
+                        // gkmerToString[gkmer] = kmer;
                             for(int k = 0; k < Q; ++ k) {
                                 h[k] += a[gkmer][k];
                             }
@@ -372,8 +372,8 @@ void PStableLSH::work() {
                     HASHED_KMER gkmer = animoAcidHash(s[p]);
                     std::string kmer;
                     kmer += s[p];
-                    gkmerNumber[gkmer] ++;
-                    gkmerToString[gkmer] = kmer;
+                    // gkmerNumber[gkmer] ++;
+                    // gkmerToString[gkmer] = kmer;
                 }
             }
 
@@ -411,13 +411,13 @@ void PStableLSH::work() {
         }
     }
     
-    if(subIdList.size() > 1) {
-        for(auto x: subIdList) {
-            for(auto y: x.second) {
-                std::cout << y << " ";
-            } 
-            std::cout << std::endl;
-        }
-    }
+    // if(subIdList.size() > 1) {
+    //     for(auto x: subIdList) {
+    //         for(auto y: x.second) {
+    //             std::cout << y << " ";
+    //         } 
+    //         std::cout << std::endl;
+    //     }
+    // }
 }
 
