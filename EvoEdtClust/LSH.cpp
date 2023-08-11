@@ -359,13 +359,13 @@ void PStableLSH::work() {
         subIdList[dsu.find(i)].emplace_back(node.idList[i]);
     }
 
-    if(subIdList.size() > 1) {
-        for(auto x: subIdList) {
-            for(auto y: x.second) {
-                std::cout << y << " ";
-            } 
-            std::cout << std::endl;
-        }
-    }
+    // if(subIdList.size() > 1) {
+    //     for(auto x: subIdList) {
+    //         for(auto y: x.second) {
+    //             std::cout << y << " ";
+    //         } 
+    //         std::cout << std::endl;
+    //     }
+    // }
 }
 
