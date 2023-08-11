@@ -60,8 +60,9 @@ int main(int argc, char* argv[]) {
 	std::vector <ClusterNode> leaves;
 
 	while(!tree.bfsOrder.empty()) {
-		auto& node = tree.bfsOrder.front();
-		if(node.n > 10 && node.level< (int)ParameterGenerator::w.size()) {
+		auto& node = tree.bfsOrder.front(); //.top() when using priority queue;
+		//hard part
+		if(node.n >= 5 && node.level < (int)ParameterGenerator::w.size()) {
 			int w = ParameterGenerator::w[node.level];
 			int k = ParameterGenerator::k[node.level];
 			double sim = ParameterGenerator::computeSimFromWK(w, k, node.avgL);
@@ -71,10 +72,10 @@ int main(int argc, char* argv[]) {
 			GappedKmerEmbedding gkmer(node, w, k);
 			gkmer.scan();
 
-			PStableLSH plsh(node, gkmer);
+			PStableLSH plsh(node, gkmer, sim);
 			plsh.scanPars();
 			plsh.work();
-			std::cout << std::endl;
+
 			for(auto& x: plsh.subIdList) {
 				auto& idList = x.second;
 				ClusterNode newNode(seqList, idList, node.level + 1, sim);
@@ -119,7 +120,6 @@ int main(int argc, char* argv[]) {
 			ofs << "#_Cluster_" << nCluster << "\n";
 			for(int i = 0; i < leaf.n; i ++) {
 				auto& id = leaf.idList[i];
-				// ofs << seqList.data[id] << "\n";
 				ofs << headerList[id] << "\n";
 			}
 		}

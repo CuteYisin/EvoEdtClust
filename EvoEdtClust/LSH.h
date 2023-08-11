@@ -6,7 +6,6 @@
 #include <cmath>
 #include <random>
 #include <ctime>
-#include <map>
 #include <set>
 #include <algorithm>
 
@@ -50,32 +49,25 @@ class PStableLSH {
         inline HASHED_KMER animoAcidHash(const char&);
 
         double __f(double);
-        double __rho(double, double, double);
-        double getQ5(int, int, double);
-        double getQ80(int, int, double);
         double getOptimalSigma();
-        int getOptimalQ(double);
-        int getOptimalT(double, int);
 
 
     public:
         const ClusterNode& node;
         const GappedKmerEmbedding& gke;
 
-        double similarityPairEstimation;
-        double targetP1, targetP2, Q5, Q80, targetRho;
-        double sigma, gamma;
+        double sim, similarityPairEstimation;
+        double targetFP, targetP2, targetP1;
+        double sigma;
         int Q, T;
-        
+
         DSU dsu;
         std::unordered_map <int, std::vector<int> > subIdList;
-        // std::map <int, std::vector<int> > subIdList;
 
-        std::vector <int> maxT;
         std::unordered_map <HASHED_KMER, std::vector <double> > a;
         std::vector <double> b;
 
-        PStableLSH(const ClusterNode&, const GappedKmerEmbedding&);
+        PStableLSH(const ClusterNode&, const GappedKmerEmbedding&, double);
         ~PStableLSH();
 
         double editDistanceCalculate(const std::string&, const std::string&);

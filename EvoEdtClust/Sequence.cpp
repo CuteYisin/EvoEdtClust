@@ -57,11 +57,6 @@ ClusterNode::ClusterNode(const SequenceList& seqList,
 ClusterNode::~ClusterNode() { }
 
 
-// bool ClusterNode::operator< (const ClusterNode& other) const {
-//     return n > other.n;
-// }
-
-
 void ClusterNode::show() {
     std::cout << "=== Current set contains " << n << " sequences with average length " << avgL << " .. " << std::endl; 
     std::cout << "+++ Sequences are: ";
@@ -92,7 +87,7 @@ ClusterTree::ClusterTree(const SequenceList& seqList) {
         idList.emplace_back(i);
     }
 
-    bfsOrder = std::queue<ClusterNode> ();
+    bfsOrder = std::queue <ClusterNode> ();
     bfsOrder.push(ClusterNode(seqList, idList, 0, 0.0));
 }
 
