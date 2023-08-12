@@ -26,6 +26,7 @@ class GappedKmerEmbedding {
         std::vector <int> nGKmer;
         int maxNGKmer, minNGKmer;
         double avgNGKmer;
+        double theoreticalTotalNGKMer;
 
         GappedKmerEmbedding(const ClusterNode&, int, int);
         ~GappedKmerEmbedding();

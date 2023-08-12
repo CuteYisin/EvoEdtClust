@@ -1,6 +1,6 @@
 #include <omp.h>
 #include "LSH.h"
-#include "Timer.h"
+#include "Utils.h"
 
 
 DSU::DSU(int n) {
@@ -61,7 +61,7 @@ struct FingerprintHasher {
 
 
 PStableLSH::PStableLSH(const ClusterNode& node, const GappedKmerEmbedding& gke, double sim):
-    node(node), gke(gke), sim(sim), Qlist({10, 4}), Tlist({50, 5}), dsu(node.n) {
+    node(node), gke(gke), dsu(node.n), sim(sim), Qlist({10, 4}), Tlist({50, 5}) {
         std::cout << "=== Partitioning this set use p-stable LSH " << std::endl;
         Q = Qlist[node.level];
         T = Tlist[node.level];
@@ -141,6 +141,8 @@ inline HASHED_KMER PStableLSH::animoAcidHash(const char& aa) {
 
 void PStableLSH::scanPars() {
     a = std::unordered_map <HASHED_KMER, std::vector<double> > ();
+    a.reserve(2*gke.theoreticalTotalNGKMer);
+    a.max_load_factor(1);
 
     for(int i = 0; i < node.n; ++ i) {
         auto& id = node.idList[i];
@@ -278,15 +280,18 @@ void PStableLSH::work() {
     for(int iter = 1; iter <= T; ++ iter) {
         //std::cout << "--- Now processing iteration " << iter << std::endl;
 
+//auto st0 = Timer::set_start();
         std::vector <Fingerprint> table = std::vector <Fingerprint> (node.n);
         for(int i = 0; i < node.n; ++ i) {
             table[i] = Fingerprint(Q);
         }
 
         updatePars();
+//Timer::time_profile("-- LSH work -- update pars ", st0);
 
-        int threads = 16;
-        #pragma omp parallel for num_threads(threads)
+
+//auto st1 = Timer::set_start();
+        #pragma omp parallel for num_threads(Config::n_threads)
         for(int i = 0; i < node.n; ++ i) {
             std::vector <double> h(Q);
             for(int k = 0; k < Q; ++ k) {
@@ -315,9 +320,10 @@ void PStableLSH::work() {
             for(int k = 0; k < Q; ++ k) {
                 //h[k] /= gke.nGKmer[i] + gke.minNGKmer;
                 //h[k] /= 2 * gke.nGKmer[i];
-                table[i].key[k] = floor((h[k] + b[k]) / sigma);
+                table[i].key[k] = std::floor((h[k] + b[k]) / sigma);
             }
         }
+//Timer::time_profile("-- LSH work -- hashing ", st1);
 
 
        // for(int i = 0; i < node.n; ++ i) {
@@ -329,6 +335,8 @@ void PStableLSH::work() {
        //     std::cout << std::endl;
        // }
         
+
+//auto st2 = Timer::set_start();
         //Merge dsu if they shared the same fingerprint
         std::unordered_map <Fingerprint, int, FingerprintHasher> bucket;
         for(int i = 0; i < node.n; i ++) {
@@ -338,14 +346,15 @@ void PStableLSH::work() {
                 dsu.merge(bucket[table[i]], i);
             }
         }
+//Timer::time_profile("-- LSH work -- merge dsu ", st2);
 
-        std::unordered_map <int, std::vector<int> > glanceDSU;
-        for(int i = 0; i < node.n; ++ i) {
-            if(glanceDSU.count(dsu.find(i)) == 0) {
-                glanceDSU[dsu.find(i)] = std::vector <int> ();
-            }
-            glanceDSU[dsu.find(i)].emplace_back(node.idList[i]);
-        }
+        //std::unordered_map <int, std::vector<int> > glanceDSU;
+        //for(int i = 0; i < node.n; ++ i) {
+        //    if(glanceDSU.count(dsu.find(i)) == 0) {
+        //        glanceDSU[dsu.find(i)] = std::vector <int> ();
+        //    }
+        //    glanceDSU[dsu.find(i)].emplace_back(node.idList[i]);
+        //}
 
 
        // std::cout << "~~~ Glance DSU" << std::endl;
@@ -359,6 +368,8 @@ void PStableLSH::work() {
         
     }
 
+
+//auto st3 = Timer::set_start();
     //Scan the dsu, and parse it to diffent sequence idlist
     subIdList = std::unordered_map <int, std::vector<int> > ();
     for(int i = 0; i < node.n; ++ i) {
@@ -376,5 +387,6 @@ void PStableLSH::work() {
             std::cout << std::endl;
         }
     }
+//Timer::time_profile("-- LSH work -- scan dsu", st3);
 }
 

@@ -1,3 +1,4 @@
+#include <cmath>
 #include "GappedKmer.h"
 
 //w-k (w,k)
@@ -53,6 +54,7 @@ int GappedKmerEmbedding::calcNGKmer(int l) {
 void GappedKmerEmbedding::scan() {
     nGKmer = std::vector <int> (node.n);
     maxNGKmer = 0, minNGKmer = 0x3f3f3f3f, avgNGKmer = 0.0;
+    theoreticalTotalNGKMer = std::pow(20, k);
     for(int i = 0; i < node.n; ++ i) {
         const int id = node.idList[i];
         const std::string_view s = node.seqList.data[id];
@@ -61,5 +63,6 @@ void GappedKmerEmbedding::scan() {
         minNGKmer = std::min(minNGKmer, nGKmer[i]);
         avgNGKmer += nGKmer[i];
     }
+    theoreticalTotalNGKMer = std::min(theoreticalTotalNGKMer, avgNGKmer);
     avgNGKmer /= node.n;
 }
