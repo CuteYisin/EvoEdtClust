@@ -65,7 +65,7 @@ Timer::time_profile("-- Load sequences: ", st0);
 	while(!tree.bfsOrder.empty()) {
 		auto& node = tree.bfsOrder.front(); //.top() when using priority queue;
 		//hard part
-		if(node.n >= 5 && node.level < (int)ParameterGenerator::w.size()) {
+		if(node.n > 10 && node.level < (int)ParameterGenerator::w.size()) {
 			int w = ParameterGenerator::w[node.level];
 			int k = ParameterGenerator::k[node.level];
 			double sim = ParameterGenerator::computeSimFromWK(w, k, node.avgL);

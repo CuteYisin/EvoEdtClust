@@ -67,6 +67,8 @@ class PStableLSH {
         std::unordered_map <HASHED_KMER, std::vector <double> > a;
         std::vector <double> b;
 
+        std::vector <int> Qlist, Tlist;
+
         PStableLSH(const ClusterNode&, const GappedKmerEmbedding&, double);
         ~PStableLSH();
 

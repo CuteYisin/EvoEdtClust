@@ -61,8 +61,10 @@ struct FingerprintHasher {
 
 
 PStableLSH::PStableLSH(const ClusterNode& node, const GappedKmerEmbedding& gke, double sim):
-    node(node), gke(gke), sim(sim), Q(8), T(50), dsu(node.n) {
+    node(node), gke(gke), sim(sim), Qlist({10, 4}), Tlist({50, 5}), dsu(node.n) {
         std::cout << "=== Partitioning this set use p-stable LSH " << std::endl;
+        Q = Qlist[node.level];
+        T = Tlist[node.level];
         std::cout << "+++ use " << Q << " hash values as a key, repeat " << T << " times" << std::endl;
 
 auto st0 = Timer::set_start();
@@ -97,7 +99,7 @@ double PStableLSH::getOptimalSigma() {
     if(similarityPairEstimation == 1) {
         similarityPairEstimation = 1 - 1e-4;
     }
-    targetFP = 10.0 / (double)(node.n * node.n * (1 - similarityPairEstimation));
+    targetFP = 1.0 / (double)(node.n * (node.n - 1) * (1 - similarityPairEstimation) / 2.0);
     targetP2 = std::pow(targetFP, 1.0/Q);
     //std::cerr << "~~~ oldp2 = " << oldP2 << ", targetp2 = " << targetP2 << std::endl;
     double l = 1e-6, r = 100.0, mid;
@@ -366,13 +368,13 @@ void PStableLSH::work() {
         subIdList[dsu.find(i)].emplace_back(node.idList[i]);
     }
 
-    // if(subIdList.size() > 1) {
-    //     for(auto x: subIdList) {
-    //         for(auto y: x.second) {
-    //             std::cout << y << " ";
-    //         } 
-    //         std::cout << std::endl;
-    //     }
-    // }
+    if(subIdList.size() > 1) {
+        for(auto x: subIdList) {
+            for(auto y: x.second) {
+                std::cout << y << " ";
+            } 
+            std::cout << std::endl;
+        }
+    }
 }
 
