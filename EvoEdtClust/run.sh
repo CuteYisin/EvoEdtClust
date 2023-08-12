@@ -5,12 +5,8 @@ sim=0.9
 INPUT_FASTA=/data/cabins/yxxiang/simulate/testdata50-10.fa
 OUTPUT_DIR=./output/testdata50-10
 
-if [ ! -d "./output" ]; then
-    mkdir "./output"
-fi
-
 if [ ! -d ${OUTPUT_DIR} ]; then
-    mkdir ${OUTPUT_DIR}
+    mkdir -p ${OUTPUT_DIR}
 fi
 
 #INPUT_FASTA=/data/cabins/yxxiang/simulate/testdata50-1.fa
@@ -33,9 +29,5 @@ fi
 make clean
 make -j
 
-#rm -rf ${OUTPUT_DIR}
-#mkdir ${OUTPUT_DIR}
-
-./evoEdtClust.exe -t ${sim} ${INPUT_FASTA} ${OUTPUT_DIR} > log.txt
-
-#/usr/bin/time --format="%e\t%M" -a -o ./_TimeMemory.txt ./evoEdtClust.exe -t 0.9 ${INPUT_FASTA} ${OUTPUT_DIR} > ${OUTPUT_DIR}/log.txt
+/usr/bin/time --format="%e\t%M" -a -o ./_TimeMemory.txt ./evoEdtClust.exe -t ${sim} ${INPUT_FASTA} ${OUTPUT_DIR} > log.txt
+diff ${OUTPUT_DIR}/freeze_EvoEdtClust_0.9.out ${OUTPUT_DIR}/EvoEdtClust_0.9.out

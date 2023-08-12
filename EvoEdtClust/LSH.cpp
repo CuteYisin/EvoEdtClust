@@ -1,5 +1,6 @@
 #include <omp.h>
 #include "LSH.h"
+#include "Timer.h"
 
 
 DSU::DSU(int n) {
@@ -63,8 +64,13 @@ PStableLSH::PStableLSH(const ClusterNode& node, const GappedKmerEmbedding& gke, 
     node(node), gke(gke), sim(sim), Q(8), T(50), dsu(node.n) {
         std::cout << "=== Partitioning this set use p-stable LSH " << std::endl;
         std::cout << "+++ use " << Q << " hash values as a key, repeat " << T << " times" << std::endl;
+
+auto st0 = Timer::set_start();
         similarityPairEstimation = sample();
+Timer::time_profile("-- LSH init -- sample estimation: ", st0);
+auto st1 = Timer::set_start();
         sigma = getOptimalSigma();
+Timer::time_profile("-- LSH init -- optSigma: ", st1);
         std::cout << "+++ Due to " << node.n << " sequences to cluster, optimal sigma is " << sigma << std::endl;
 }
 
@@ -230,7 +236,7 @@ double PStableLSH::sample() {
     if(node.n > 10000) {
         pairNumber = 10000;
 
-        while (selected_pairs.size() < pairNumber) {
+        while ((int)selected_pairs.size() < pairNumber) {
             int random_num1 = distribution(generator), random_num2 = distribution(generator);
             while(random_num1 == random_num2) {
                 random_num2 = distribution(generator);
@@ -277,7 +283,8 @@ void PStableLSH::work() {
 
         updatePars();
 
-        #pragma omp parallel for num_threads(16)
+        int threads = 16;
+        #pragma omp parallel for num_threads(threads)
         for(int i = 0; i < node.n; ++ i) {
             std::vector <double> h(Q);
             for(int k = 0; k < Q; ++ k) {
