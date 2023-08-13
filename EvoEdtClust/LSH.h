@@ -55,13 +55,13 @@ class PStableLSH {
     public:
         const ClusterNode& node;
         const GappedKmerEmbedding& gke;
+        DSU dsu;
 
         double sim, similarityPairEstimation;
         double targetFP, targetP2, targetP1;
         double sigma;
         int Q, T;
 
-        DSU dsu;
         std::unordered_map <int, std::vector<int> > subIdList;
 
         std::unordered_map <HASHED_KMER, std::vector <double> > a;

@@ -4,7 +4,7 @@
 #include "Sequence.h"
 #include "GappedKmer.h"
 #include "LSH.h"
-#include "Timer.h"
+#include "Utils.h"
 
 
 void showUsage(std::string name) {
@@ -12,6 +12,7 @@ void showUsage(std::string name) {
 		<< "Options:\n"
 		<< "\t-h,\t\tShow this help message\n"
 		<< "\t-t,\t\tthreshold of similarity (default: 0.5)\n"
+		<< "\t-p,\t\tnumber of threads used (default: 1)\n"
 		<< std::endl;
 }
 
@@ -23,7 +24,7 @@ int main(int argc, char* argv[]) {
 	std::cerr.tie(NULL);
 
 	std::string inputSim = "";
-	double similarityThreshold = 0.5;
+	//double similarityThreshold = 0.5;
 	std::string inputFastaFile = "", outputDir = "";
 
 	if(argc < 2) {
@@ -35,10 +36,18 @@ int main(int argc, char* argv[]) {
 		if(strcmp(argv[i], "-h") == 0) {
 			showUsage(argv[0]);
 			return 0;
+		} else if (strcmp(argv[i], "-p") == 0) {
+			if (i + 1 < argc) {
+				std::string input_threads = argv[++i];
+				Config::n_threads = std::stoi(input_threads);
+			} else {
+				std::cerr << "-p option requires one argument." << std::endl;
+				return 1;
+			}  
 		} else if (strcmp(argv[i], "-t") == 0) {
 			if (i + 1 < argc) {
 				inputSim = argv[++i];
-				similarityThreshold = std::stof(inputSim);
+				//similarityThreshold = std::stof(inputSim);
 			} else {
 				std::cerr << "-t option requires one argument." << std::endl;
 				return 1;
@@ -62,6 +71,7 @@ Timer::time_profile("-- Load sequences: ", st0);
 	ClusterTree tree(seqList);
 	std::vector <ClusterNode> leaves;
 
+auto stt = Timer::set_start();
 	while(!tree.bfsOrder.empty()) {
 		auto& node = tree.bfsOrder.front(); //.top() when using priority queue;
 		//hard part
@@ -72,21 +82,21 @@ Timer::time_profile("-- Load sequences: ", st0);
 
 			std::cout << "+++ w = " << w << ", k = " << k << ", sim = " << sim << std::endl;
 			
-auto st1 = Timer::set_start();
+//auto st1 = Timer::set_start();
 			GappedKmerEmbedding gkmer(node, w, k);
 			gkmer.scan();
-Timer::time_profile("-- GKM embedding: ", st1);
+//Timer::time_profile("-- GKM embedding: ", st1);
 
-auto st2 = Timer::set_start();
+//auto st2 = Timer::set_start();
 			PStableLSH plsh(node, gkmer, sim);
-Timer::time_profile("-- LSH init: ", st2);
-auto st3 = Timer::set_start();
+//Timer::time_profile("-- LSH init: ", st2);
+//auto st3 = Timer::set_start();
 			plsh.scanPars();
-Timer::time_profile("-- LSH scan: ", st3);
-auto st4 = Timer::set_start();
+//Timer::time_profile("-- LSH scan: ", st3);
+//auto st4 = Timer::set_start();
 			plsh.work();
-Timer::time_profile("-- LSH work: ", st4);
- 
+//Timer::time_profile("-- LSH work: ", st4);
+
 			for(auto& x: plsh.subIdList) {
 				auto& idList = x.second;
 				ClusterNode newNode(seqList, idList, node.level + 1, sim);
@@ -97,7 +107,7 @@ Timer::time_profile("-- LSH work: ", st4);
 		}
 		tree.bfsOrder.pop();
 	}
-
+Timer::time_profile("-- Work total: ", stt);
 
 
 
